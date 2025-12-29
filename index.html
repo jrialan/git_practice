@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bond APR Calculator</title>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --bg-color: #f3f4f6;
+            --card-bg: #ffffff;
+            --text-color: #1f2937;
+            --border-color: #e5e7eb;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .calculator-card {
+            background-color: var(--card-bg);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            width: 100%;
+            max-width: 450px;
+        }
+
+        h1 {
+            margin-top: 0;
+            font-size: 1.5rem;
+            color: var(--primary-color);
+            text-align: center;
+            margin-bottom: 1.5rem;
+        }
+
+        .input-group {
+            margin-bottom: 1rem;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            font-size: 0.9rem;
+        }
+
+        input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 1rem;
+            box-sizing: border-box; /* Ensures padding doesn't affect width */
+            transition: border-color 0.2s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        button {
+            width: 100%;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 0.75rem;
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 1rem;
+            transition: background-color 0.2s;
+        }
+
+        button:hover {
+            background-color: #1d4ed8;
+        }
+
+        .results {
+            margin-top: 2rem;
+            padding-top: 1.5rem;
+            border-top: 1px solid var(--border-color);
+            display: none; /* Hidden by default */
+        }
+
+        .results.visible {
+            display: block;
+            animation: fadeIn 0.3s ease-in;
+        }
+
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.75rem;
+            font-size: 0.95rem;
+        }
+
+        .result-value {
+            font-weight: 700;
+            font-family: 'Courier New', Courier, monospace;
+        }
+
+        .highlight {
+            color: var(--primary-color);
+            font-size: 1.1rem;
+        }
+
+        .error {
+            color: #dc2626;
+            font-size: 0.875rem;
+            margin-top: 0.5rem;
+            display: none;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+<div class="calculator-card">
+    <h1>Bond APR Calculator</h1>
+    
+    <div class="input-group">
+        <label for="price">Purchase Price (< 100)</label>
+        <input type="number" id="price" placeholder="e.g. 98.5" step="0.01" max="99.99">
+    </div>
+
+    <div class="input-group">
+        <label for="purchaseDate">Purchase Date</label>
+        <input type="date" id="purchaseDate">
+    </div>
+
+    <div class="input-group">
+        <label for="expiryDate">Expiration Date (Maturity)</label>
+        <input type="date" id="expiryDate">
+    </div>
+
+    <div id="errorMessage" class="error"></div>
+
+    <button onclick="calculateAPR()">Calculate APR</button>
+
+    <div class="results" id="resultsArea">
+        <div class="result-item">
+            <span>Days Held:</span>
+            <span class="result-value" id="daysHeld">0</span>
+        </div>
+        <div class="result-item">
+            <span>Absolute Return:</span>
+            <span class="result-value" id="absReturn">0.00%</span>
+        </div>
+        <br>
+        <div class="result-item">
+            <span>Nominal APR (Simple):</span>
+            <span class="result-value highlight" id="nominalApr">0.00%</span>
+        </div>
+        <div class="result-item">
+            <span>Effective APR (Compound):</span>
+            <span class="result-value highlight" id="effectiveApr">0.00%</span>
+        </div>
+    </div>
+</div>
+
+<script>
+    // Set default dates (Today and Tomorrow) for convenience
+    document.addEventListener('DOMContentLoaded', () => {
+        const today = new Date();
+        const tomorrow = new Date(today);
+        tomorrow.setDate(tomorrow.getDate() + 3); // Default to 3 days like user example
+
+        document.getElementById('purchaseDate').valueAsDate = today;
+        document.getElementById('expiryDate').valueAsDate = tomorrow;
+    });
+
+    function calculateAPR() {
+        // 1. Get DOM elements
+        const priceInput = document.getElementById('price');
+        const purchaseDateInput = document.getElementById('purchaseDate');
+        const expiryDateInput = document.getElementById('expiryDate');
+        const errorDiv = document.getElementById('errorMessage');
+        const resultsArea = document.getElementById('resultsArea');
+
+        // 2. Parse values
+        const price = parseFloat(priceInput.value);
+        const pDate = new Date(purchaseDateInput.value);
+        const eDate = new Date(expiryDateInput.value);
+
+        // 3. Reset state
+        errorDiv.style.display = 'none';
+        resultsArea.classList.remove('visible');
+
+        // 4. Validation
+        if (isNaN(price) || price <= 0 || price >= 100) {
+            showError("Please enter a valid price between 0 and 100.");
+            return;
+        }
+        
+        if (!purchaseDateInput.value || !expiryDateInput.value) {
+            showError("Please select both purchase and expiration dates.");
+            return;
+        }
+
+        // Calculate time difference in milliseconds
+        const timeDiff = eDate - pDate;
+        
+        // Convert to days (Milliseconds / 1000 / 60 / 60 / 24)
+        const daysHeld = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+
+        if (daysHeld <= 0) {
+            showError("Expiration date must be after the purchase date.");
+            return;
+        }
+
+        // 5. Calculations
+        const faceValue = 100;
+        const daysInYear = 365;
+
+        // Holding Period Return (Absolute %)
+        // Formula: (Face - Price) / Price
+        const holdingReturn = (faceValue - price) / price;
+
+        // Nominal APR (Simple Interest)
+        // Formula: HoldingReturn * (365 / Days)
+        const nominalApr = holdingReturn * (daysInYear / daysHeld);
+
+        // Effective APR (Compound Interest / EAR)
+        // Formula: ((Face / Price) ^ (365 / Days)) - 1
+        const effectiveApr = Math.pow((faceValue / price), (daysInYear / daysHeld)) - 1;
+
+        // 6. Display Results
+        document.getElementById('daysHeld').textContent = daysHeld;
+        document.getElementById('absReturn').textContent = (holdingReturn * 100).toFixed(2) + "%";
+        document.getElementById('nominalApr').textContent = (nominalApr * 100).toFixed(2) + "%";
+        
+        // Handle massive numbers for Effective APR (if days are very short)
+        if (effectiveApr > 100) {
+             document.getElementById('effectiveApr').textContent = "> 10,000%";
+        } else {
+             document.getElementById('effectiveApr').textContent = (effectiveApr * 100).toFixed(2) + "%";
+        }
+
+        resultsArea.classList.add('visible');
+    }
+
+    function showError(msg) {
+        const errorDiv = document.getElementById('errorMessage');
+        errorDiv.textContent = msg;
+        errorDiv.style.display = 'block';
+    }
+</script>
+
+</body>
+</html>
